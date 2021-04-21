@@ -370,7 +370,7 @@ class AppSearchService implements IndexingInterface
         $results = $engines['results'] ?? [];
         $allEngines = array_column($results, 'name');
         if (!in_array($index, $allEngines)) {
-            $result = $this->getClient()->createEngine($index);
+            $result = $this->getClient()->createEngine($index, 'en');
             $this->handleError($result);
         }
     }
