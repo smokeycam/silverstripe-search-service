@@ -1,5 +1,5 @@
 {
-  "name": "silverstripe/silverstripe-search-service",
+  "name": "smokeycam/silverstripe-search-service",
   "description": "Elastic App Search Functionality",
   "type": "silverstripe-vendormodule",
   "license": "BSD-3-Clause",
