@@ -8,6 +8,7 @@ use SilverStripe\Core\Extensible;
 use SilverStripe\Core\Injector\Injectable;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\ORM\ArrayLib;
+use SilverStripe\ORM\ArrayList;
 use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DataObjectSchema;
@@ -249,10 +250,16 @@ class DataObjectDocument implements
         }
 
         foreach ($this->getIndexedFields() as $field) {
+
             $this->getIndexService()->validateField($field->getSearchFieldName());
             /* @var DBField&DBFieldExtension $dbField */
             $dbField = $this->getFieldValue($field);
             if (!$dbField) {
+                continue;
+            }
+            if ($field->getSearchFieldName() == 'markets'){
+                $dbField = $this->getFieldValue($field);
+                $attributes['markets'] = $dbField->getValue();
                 continue;
             }
             if (is_array($dbField)) {
@@ -294,7 +301,6 @@ class DataObjectDocument implements
                 $field->getSearchFieldName()
             ));
         }
-
         // DataObject specific customisation
         $dataObject->invokeWithExtensions('updateSearchAttributes', $attributes);
 
