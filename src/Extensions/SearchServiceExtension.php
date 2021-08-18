@@ -118,6 +118,11 @@ class SearchServiceExtension extends DataExtension
     {
         $this->owner->addToIndexes();
     }
+    
+    public function onAfterWrite()
+    {
+        $this->owner->addToIndexes();
+    }
 
     /**
      * When unpublishing this item, remove from search
