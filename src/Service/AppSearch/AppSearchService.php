@@ -4,10 +4,12 @@ namespace SilverStripe\SearchService\Services\AppSearch;
 
 use Elastic\AppSearch\Client\Client;
 use SilverStripe\Core\Config\Configurable;
+use SilverStripe\Core\Environment;
 use SilverStripe\Core\Injector\Injectable;
 use SilverStripe\SearchService\Exception\IndexConfigurationException;
 use SilverStripe\SearchService\Exception\IndexingServiceException;
 use SilverStripe\SearchService\Interfaces\BatchDocumentInterface;
+use SilverStripe\SearchService\Interfaces\BatchDocumentRemovalInterface;
 use SilverStripe\SearchService\Interfaces\DocumentInterface;
 use SilverStripe\SearchService\Interfaces\IndexingInterface;
 use InvalidArgumentException;
@@ -17,7 +19,7 @@ use SilverStripe\SearchService\Service\Traits\ConfigurationAware;
 use SilverStripe\SearchService\Service\DocumentBuilder;
 use SilverStripe\SearchService\Service\IndexConfiguration;
 
-class AppSearchService implements IndexingInterface
+class AppSearchService implements IndexingInterface, BatchDocumentRemovalInterface
 {
     use Configurable;
     use ConfigurationAware;
@@ -90,6 +92,14 @@ class AppSearchService implements IndexingInterface
             $fields = $this->getBuilder()->toArray($item);
 
             $indexes = $this->getConfiguration()->getIndexesForDocument($item);
+
+            if (empty($indexes)) {
+                Injector::inst()->get(LoggerInterface::class)->warn(
+                    sprintf("No valid indexes found for document %s, skipping...", $item->getIdentifier())
+                );
+                continue;
+            }
+
             foreach (array_keys($indexes) as $indexName) {
                 if (!isset($documentMap[$indexName])) {
                     $documentMap[$indexName] = [];
@@ -154,6 +164,48 @@ class AppSearchService implements IndexingInterface
         }
 
         return $this;
+    }
+
+    /**
+     * Forcefully remove all documents from the provided index name. Batches the requests to Elastic based upon the
+     * configured batch size, beginning at page 1 and continuing until the index is empty.
+     *
+     * @param string $indexName The index name to remove all documents from
+     * @return int The total number of documents removed
+     */
+    public function removeAllDocuments(string $indexName): int
+    {
+        $cfg = $this->getConfiguration();
+        $client = $this->getClient();
+        $indexName = static::environmentizeIndex($indexName);
+        $numDeleted = 0;
+
+        $documents = $client->listDocuments($indexName, 1, $cfg->getBatchSize());
+
+        // Loop forever until we no longer get any results
+        while (is_array($documents) && sizeof($documents['results']) > 0) {
+            $idsToRemove = [];
+
+            // Create the list of indexed documents to remove
+            foreach ($documents['results'] as $doc) {
+                $idsToRemove[] = $doc['id'];
+            }
+
+            // Actually delete the documents
+            $deletedDocs = $client->deleteDocuments($indexName, $idsToRemove);
+
+            // Keep an accurate running count of the number of documents deleted.
+            foreach ($deletedDocs as $doc) {
+                if (is_array($doc) && isset($doc['deleted']) && $doc['deleted'] === true) {
+                    $numDeleted++;
+                }
+            }
+
+            // Re-fetch $documents now that we've deleted this batch
+            $documents = $client->listDocuments($indexName, 1, $cfg->getBatchSize());
+        }
+
+        return $numDeleted;
     }
 
     /**
@@ -455,8 +507,6 @@ class AppSearchService implements IndexingInterface
         }
     }
 
-
-
     /**
      * @param string $indexName
      * @return string
@@ -469,5 +519,20 @@ class AppSearchService implements IndexingInterface
         }
 
         return $indexName;
+    }
+
+    public function getExternalURL(): ?string
+    {
+        return Environment::getEnv('APP_SEARCH_ENDPOINT') ?: null;
+    }
+
+    public function getExternalURLDescription(): ?string
+    {
+        return 'Elastic App Search Dashboard';
+    }
+
+    public function getDocumentationURL(): ?string
+    {
+        return 'https://www.elastic.co/guide/en/app-search/current/guides.html';
     }
 }

@@ -34,7 +34,7 @@ class ReindexJobTest extends SearchServiceTest
     public function testJob()
     {
         $config = $this->mockConfig();
-        $config->set('isClassIndexed', [
+        $config->set('use_sync_jobs', [
             DataObjectFake::class => true,
             'Fake' => true,
         ]);
@@ -43,7 +43,7 @@ class ReindexJobTest extends SearchServiceTest
         // Add a second fetcher to complicate things
         $registry->addFetchCreator(new FakeFetchCreator());
 
-        $job = ReindexJob::create([DataObjectFake::class, 'Fake'], 6);
+        $job = ReindexJob::create([DataObjectFake::class, 'Fake'], [], 6);
 
         $job->setup();
         $totalSteps = $job->getJobData()->totalSteps;

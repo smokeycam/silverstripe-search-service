@@ -4,11 +4,12 @@
 namespace SilverStripe\SearchService\Tests\Fake;
 
 use SilverStripe\SearchService\Interfaces\BatchDocumentInterface;
+use SilverStripe\SearchService\Interfaces\BatchDocumentRemovalInterface;
 use SilverStripe\SearchService\Interfaces\DocumentInterface;
 use SilverStripe\SearchService\Interfaces\IndexingInterface;
 use SilverStripe\SearchService\Service\DocumentBuilder;
 
-class ServiceFake implements IndexingInterface
+class ServiceFake implements IndexingInterface, BatchDocumentRemovalInterface
 {
 
     public $shouldError = false;
@@ -39,6 +40,18 @@ class ServiceFake implements IndexingInterface
         }
 
         return $this;
+    }
+
+    public function removeAllDocuments(string $indexName): int
+    {
+        if ($this->shouldError) {
+            return 0;
+        }
+        
+        $numDocs = sizeof($this->documents);
+        $this->documents = [];
+
+        return $numDocs;
     }
 
     public function removeDocument(DocumentInterface $doc): IndexingInterface
@@ -95,5 +108,20 @@ class ServiceFake implements IndexingInterface
     public function getMaxDocumentSize(): int
     {
         return $this->maxDocSize;
+    }
+
+    public function getExternalURL(): ?string
+    {
+        return null;
+    }
+
+    public function getExternalURLDescription(): ?string
+    {
+        return null;
+    }
+
+    public function getDocumentationURL(): ?string
+    {
+        return null;
     }
 }
